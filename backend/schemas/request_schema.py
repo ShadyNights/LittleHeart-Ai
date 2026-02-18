@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 from backend.utils.constants import (
     AGE_MIN, AGE_MAX, TRIMESTER_MIN, TRIMESTER_MAX, WEEKS_MIN, WEEKS_MAX,
     HR_MIN, HR_MAX, HB_MIN, HB_MAX, BP_CAT_MIN, BP_CAT_MAX
@@ -20,6 +21,12 @@ class AnalyzeRequest(BaseModel):
     fever: int = Field(..., ge=0, le=1)
     diabetes_history: int = Field(..., ge=0, le=1)
     previous_complications: int = Field(..., ge=0, le=1)
+    blood_pressure_systolic: Optional[int] = None
+    blood_pressure_diastolic: Optional[int] = None
+
+class ChatRequest(BaseModel):
+    session_id: str
+    message: str
 
     class Config:
         json_schema_extra = {

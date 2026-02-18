@@ -6,8 +6,9 @@ import json
 import streamlit as st
 from typing import Dict, Any, List
 
-API_BASE = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
-WS_URL = os.getenv("WS_URL", "ws://127.0.0.1:8000/ws/alerts")
+# Hardcode to 127.0.0.1 for stability on local Windows
+API_BASE = "http://127.0.0.1:8000"
+WS_URL = "ws://127.0.0.1:8000/ws/alerts"
 
 def analyze_patient(data: Dict[str, Any]) -> Dict[str, Any]:
     """Sends patient data to the backend risk assessment engine."""
@@ -17,7 +18,8 @@ def analyze_patient(data: Dict[str, Any]) -> Dict[str, Any]:
         if token:
             headers["Authorization"] = f"Bearer {token}"
             
-        response = httpx.post(f"{API_BASE}/analyze", json=data, headers=headers, timeout=30.0)
+        # Increased timeout to 60s for deep clinical analysis
+        response = httpx.post(f"{API_BASE}/analyze", json=data, headers=headers, timeout=60.0)
         
         if response.status_code == 401:
             return {
@@ -72,8 +74,8 @@ def call_chatbot_api(session_id: str, message: str) -> Dict[str, Any]:
         token = st.session_state.get("access_token")
         if token:
             headers["Authorization"] = f"Bearer {token}"
-        params = {"session_id": session_id, "message": message}
-        response = httpx.post(f"{API_BASE}/chat/message", params=params, headers=headers, timeout=20.0)
+        data = {"session_id": session_id, "message": message}
+        response = httpx.post(f"{API_BASE}/chat/message", json=data, headers=headers, timeout=20.0)
         response.raise_for_status()
         return response.json()
     except Exception as e:

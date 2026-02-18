@@ -1,3 +1,6 @@
+from backend.middleware.logging_middleware import setup_logging
+setup_logging()
+
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
@@ -7,13 +10,12 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from backend.api.analyze import router as analyze_router
 from backend.middleware.error_handler import register_exception_handlers
-from backend.middleware.logging_middleware import setup_logging, logging_middleware
+from backend.middleware.logging_middleware import logging_middleware
 from backend.middleware.observability import TracingMiddleware
 from backend.services.metrics_service import metrics_endpoint
 from backend.config import settings
 from backend.websocket_manager import manager
 
-setup_logging()
 limiter = Limiter(key_func=get_remote_address)
 ws_logger = logging.getLogger("WebSocketAlerts")
 

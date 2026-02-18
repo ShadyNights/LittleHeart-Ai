@@ -1,25 +1,25 @@
 # Environment
 .env
-
-# Python
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
 
-# Virtual env
-venv/
-env/
-.venv/
+# ML Models (Heavy)
+backend/model/*.pkl
+backend/model/*.h5
 
-# Node
-node_modules/
+# Streamlit
+.streamlit/
 
-# Models
-backend/model/
-*.pkl
-*.pt
-*.onnx
+# Workspace
+.agent/
+.gemini/
+.vscode/
 
-# Logs
-*.log
+# Build
+dist/
+build/
+*.egg-info/
+
+# System
+Thumbs.db
+Desktop.ini

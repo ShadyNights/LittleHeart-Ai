@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import logging
 import os
-from backend.schemas.request_schema import AnalyzeRequest
+from backend.schemas.request_schema import AnalyzeRequest, ChatRequest
 from backend.schemas.response_schema import AnalyzeResponse
 from backend.schemas.internal_models import RiskLevel
 from backend.core.feature_engineering import preprocess_input
@@ -110,7 +110,8 @@ async def analyze(request: Request, data: AnalyzeRequest, background_tasks: Back
     
     ip_address = request.client.host if request and request.client else "internal_bot"
     db_start = time.time()
-    input_id = supabase.save_analysis_atomic(
+    input_id = await asyncio.to_thread(
+        supabase.save_analysis_atomic,
         user_id=user_id,
         data=data,
         rule_res=rule_result,
@@ -166,9 +167,11 @@ async def get_history(user_id: str = Depends(get_user_id)):
     try:
         # Pull from engine_results joined with patient_inputs if possible, or just engine_results
         # For simplicity, we query engine_results which contains final_risk and created_at
-        res = supabase.client.table("engine_results").select(
-            "id, final_risk, created_at, input_id"
-        ).order("created_at", desc=True).limit(20).execute()
+        res = await asyncio.to_thread(
+            supabase.client.table("engine_results").select(
+                "id, final_risk, created_at, input_id"
+            ).order("created_at", desc=True).limit(20).execute
+        )
         
         history = []
         # Map RiskLevel strings to scores for the trend chart
@@ -192,6 +195,6 @@ async def init_chat(user_id: str = Depends(get_user_id)):
     return {"session_id": session["id"], "state": session["current_state"], "data": session["collected_data"]}
 
 @router.post("/chat/message")
-async def chat_message(session_id: str, message: str, user_id: str = Depends(get_user_id)):
-    response, next_state = await conv_service.process_message(user_id, session_id, message)
+async def chat_message(data: ChatRequest, user_id: str = Depends(get_user_id)):
+    response, next_state = await conv_service.process_message(user_id, data.session_id, data.message)
     return {"response": response, "next_state": next_state.value}

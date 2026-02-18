@@ -31,10 +31,10 @@ def render_risk_gauge(risk_level, confidence):
             'borderwidth': 2,
             'bordercolor': "#f1f5f9",
             'steps': [
-                {'range': [0, 30], 'color': "rgba(22, 163, 74, 0.15)"},
-                {'range': [30, 60], 'color': "rgba(245, 158, 11, 0.15)"},
-                {'range': [60, 85], 'color': "rgba(249, 115, 22, 0.15)"},
-                {'range': [85, 100], 'color': "rgba(220, 38, 38, 0.15)"},
+                {'range': [0, 30], 'color': "rgba(22, 163, 74, 0.2)"},
+                {'range': [30, 60], 'color': "rgba(245, 158, 11, 0.2)"},
+                {'range': [60, 85], 'color': "rgba(234, 88, 12, 0.2)"},
+                {'range': [85, 100], 'color': "rgba(153, 27, 27, 0.2)"},
             ],
             'threshold': {
                 'line': {'color': "red", 'width': 4},

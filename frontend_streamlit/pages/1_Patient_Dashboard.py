@@ -3,6 +3,7 @@ import sys
 import plotly.express as px
 from datetime import datetime
 from pathlib import Path
+import pandas as pd
 
 # Fix relative import paths
 project_root = str(Path(__file__).resolve().parent.parent.parent)
@@ -119,9 +120,53 @@ with col_viz:
         )
         st.markdown('</div>', unsafe_allow_html=True)
         
+        # --- Detail Row: Vitals | Breakdown ---
+        st.markdown('### 🩺 Clinical Deep-Dive')
+        d_col1, d_col2 = st.columns([0.4, 0.6])
+        
+        with d_col1:
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            st.subheader("🩹 Key Vital Status")
+            last_in = st.session_state.get("last_input", {})
+            vitals = [
+                ("Age", last_in.get("age"), ""),
+                ("Trimester", f"T{last_in.get('trimester')}" if last_in.get('trimester') else "", ""),
+                ("Systolic BP", last_in.get("blood_pressure_systolic"), "🚨 >140" if last_in.get("blood_pressure_systolic", 0) >= 140 else "✅"),
+                ("Diastolic BP", last_in.get("blood_pressure_diastolic"), "🚨 >90" if last_in.get("blood_pressure_diastolic", 0) >= 90 else "✅"),
+                ("Hemoglobin", last_in.get("hemoglobin"), "⚠️ Low" if last_in.get("hemoglobin", 0) < 11.0 else "✅"),
+                ("Heart Rate", last_in.get("heart_rate"), "⚠️ High" if last_in.get("heart_rate", 0) > 100 else "✅")
+            ]
+            for label, val, status in vitals:
+                c1, c2, c3 = st.columns([0.5, 0.2, 0.3])
+                c1.write(f"**{label}**")
+                c2.write(str(val) if val is not None else "N/A")
+                c3.write(status)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with d_col2:
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            st.subheader("📋 Clinical Recommendations")
+            if risk in ["HIGH", "CRITICAL"]:
+                st.error("🚨 **IMMEDIATE ACTION REQUIRED**")
+                st.write("- Contact your primary obstetrician immediately.")
+                st.write("- Proceed to the nearest emergency obstetric care center if experiencing severe symptoms.")
+                st.write("- Monitor fetal movements every hour.")
+            elif risk == "MEDIUM":
+                st.warning("⚠️ **Increased Monitoring Advised**")
+                st.write("- Schedule a follow-up appointment within 48 hours.")
+                st.write("- Monitor blood pressure twice daily.")
+                st.write("- Ensure adequate hydration and rest.")
+            else:
+                st.success("✅ **Routine Care**")
+                st.write("- Continue standard prenatal vitamins.")
+                st.write("- Maintain regular check-up schedule.")
+                st.write("- Report any new symptoms via the assistant.")
+            st.markdown('</div>', unsafe_allow_html=True)
+
         # --- ML Probs | Rule Breakdown ---
+        st.write("### 🧠 AI Engine Logic")
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        t1, t2 = st.tabs(["ML Probabilities", "Rule Logic"])
+        t1, t2 = st.tabs(["ML Probabilities", "Rule Logic Breakdown"])
         with t1:
             engine_results = res.get("engine_results", {})
             ml_data = engine_results.get("ml", {})
@@ -132,8 +177,8 @@ with col_viz:
                 df_probs = pd.DataFrame([{"Risk": k, "Probability": v * 100} for k, v in probabilities.items()])
                 fig_probs = px.bar(df_probs, x="Risk", y="Probability", color="Risk", 
                                   color_discrete_map={"LOW": "#16A34A", "MEDIUM": "#F59E0B", "HIGH": "#DC2626", "CRITICAL": "#000000"})
-                fig_probs.update_layout(height=180, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-                st.plotly_chart(fig_probs, width="stretch")
+                fig_probs.update_layout(height=220, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(fig_probs, use_container_width=True)
             else:
                 st.write("ML probabilities unavailable.")
         with t2:

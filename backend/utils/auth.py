@@ -24,6 +24,10 @@ class Auth:
     def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> Dict[str, Any]:
         token = credentials.credentials
         try:
+            if settings.ENV == "development":
+                # Instant fallback for local development to avoid JWKS network hangs
+                return jwt.decode(token, options={"verify_signature": False, "verify_exp": False}, algorithms=["HS256", "RS256"])
+
             jwks_client = Auth.get_jwks_client()
             if not jwks_client:
                 raise HTTPException(status_code=500, detail="JWKS Client not initialized.")

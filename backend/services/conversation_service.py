@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
 from uuid import UUID
 import json
+import asyncio
 import logging
 from datetime import datetime, timedelta
 from backend.services.supabase_service import SupabaseService
@@ -48,7 +49,9 @@ class ConversationService:
         self.rule_engine = RuleEngine()
 
     async def get_or_create_session(self, user_id: str) -> Dict[str, Any]:
-        session = self.supabase.client.table("chat_sessions").select("*").eq("user_id", user_id).eq("is_completed", False).order("updated_at", desc=True).limit(1).execute()
+        session = await asyncio.to_thread(
+            self.supabase.client.table("chat_sessions").select("*").eq("user_id", user_id).eq("is_completed", False).order("updated_at", desc=True).limit(1).execute
+        )
         
         if session.data:
             s_data = session.data[0]
@@ -75,18 +78,28 @@ class ConversationService:
         return res.data[0]
 
     async def process_message(self, user_id: str, session_id: str, message: str) -> Tuple[str, ChatState]:
-        session = self.supabase.client.table("chat_sessions").select("*").eq("id", session_id).single().execute()
+        # Validate session_id is a valid UUID to prevent DB crash
+        try:
+            UUID(session_id)
+        except (ValueError, TypeError):
+             return "I'm sorry, your session has expired or is invalid. Please refresh the page to start a new clinical assessment.", ChatState.START
+
+        session = await asyncio.to_thread(
+            self.supabase.client.table("chat_sessions").select("*").eq("id", session_id).single().execute
+        )
         if not session.data:
-            return "Session not found.", ChatState.COMPLETE
+            return "Session not found. Please refresh the page.", ChatState.COMPLETE
 
         state = ChatState(session.data["current_state"])
         data = session.data["collected_data"] or {}
         
-        self.supabase.client.table("chat_messages").insert({
-            "session_id": session_id,
-            "sender": "user",
-            "content": message
-        }).execute()
+        await asyncio.to_thread(
+            self.supabase.client.table("chat_messages").insert({
+                "session_id": session_id,
+                "sender": "user",
+                "content": message
+            }).execute
+        )
 
         next_state, response = self._transition(state, message, data)
         
