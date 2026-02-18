@@ -1,0 +1,145 @@
+/* ═══════════════════════════════════════════════
+   LittleHeart AI Care — Modern Glassmorphism Theme
+   Professional Medical UI with Clean Aesthetics
+   ═══════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* === Global === */
+html,
+body,
+[data-testid="stAppViewContainer"] {
+    background: linear-gradient(135deg, #eaf2ff 0%, #f4f7fb 100%) !important;
+    font-family: 'Inter', sans-serif !important;
+    color: #0f172a !important;
+}
+
+[data-testid="stSidebar"] {
+    background: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(12px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+
+/* === Glassmorphism Cards === */
+.glass-card {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    margin-bottom: 20px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.15);
+}
+
+/* Compatibility alias for existing code using metric-card */
+.metric-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    margin-bottom: 16px;
+}
+
+
+/* === Risk Typography === */
+.risk-low {
+    color: #16A34A !important;
+    font-weight: 700;
+}
+
+.risk-medium {
+    color: #F59E0B !important;
+    font-weight: 700;
+}
+
+.risk-high {
+    color: #F97316 !important;
+    font-weight: 700;
+}
+
+.risk-critical {
+    color: #DC2626 !important;
+    font-weight: 800;
+}
+
+
+/* === Animated Alert Glow === */
+.alert-glow {
+    animation: pulse 1.5s infinite;
+    border-left: 6px solid #DC2626 !important;
+    background: linear-gradient(90deg, rgba(254, 226, 226, 0.9) 0%, rgba(255, 255, 255, 0.8) 100%);
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(220, 38, 38, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    }
+}
+
+/* === Section Headers === */
+.section-header {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #1e3a8a;
+    margin: 20px 0 12px 0;
+    letter-spacing: -0.01em;
+}
+
+/* === Inputs & Labels === */
+div[data-baseweb="input"] {
+    background-color: rgba(255, 255, 255, 0.8) !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(203, 213, 225, 0.6) !important;
+}
+
+label {
+    font-weight: 600 !important;
+    color: #334155 !important;
+    font-size: 0.9rem !important;
+}
+
+/* === Buttons === */
+.stButton button {
+    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
+    color: white !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+    border: none !important;
+    transition: all 0.2s !important;
+}
+
+.stButton button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4) !important;
+}
+
+/* === Chat Interface === */
+.stChatMessage {
+    background-color: transparent !important;
+}
+
+div[data-testid="stChatMessageContent"] {
+    background-color: rgba(255, 255, 255, 0.8) !important;
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+}

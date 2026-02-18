@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+pydantic
+pandas
+numpy
+joblib
+scikit-learn
+xgboost
+google-genai
+httpx
+python-dotenv
+supabase
+pydantic-settings
+slowapi
+python-json-logger
+PyJWT
+cryptography
