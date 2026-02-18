@@ -76,9 +76,9 @@ async def async_clinical_augmentation(input_id: str, user_id: str, data: Analyze
         notification_service.check_and_alert(input_id, user_id, data, final_risk)
         alert_service.trigger_clinical_alert(input_id, user_id, final_risk)
 
-@router.post("/analyze", response_model=AnalyzeResponse)
+@router.post("/analyze")
 @limiter.limit("10/minute")
-async def analyze(request: Optional[Request], data: AnalyzeRequest, background_tasks: BackgroundTasks, user_id: str = Depends(get_user_id)):
+async def analyze(request: Request, data: AnalyzeRequest, background_tasks: BackgroundTasks, user_id: str = Depends(get_user_id)) -> AnalyzeResponse:
     correlation_id = getattr(request.state, "correlation_id", f"anl_{int(time.time())}") if request else f"chat_{int(time.time())}"
     
     r_start = time.time()

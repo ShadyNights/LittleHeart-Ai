@@ -6,8 +6,8 @@ import json
 import streamlit as st
 from typing import Dict, Any, List
 
-API_BASE = os.getenv("API_BASE_URL", "http://localhost:8000")
-WS_URL = os.getenv("WS_URL", "ws://localhost:8000/ws/alerts")
+API_BASE = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
+WS_URL = os.getenv("WS_URL", "ws://127.0.0.1:8000/ws/alerts")
 
 def analyze_patient(data: Dict[str, Any]) -> Dict[str, Any]:
     """Sends patient data to the backend risk assessment engine."""

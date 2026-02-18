@@ -240,6 +240,7 @@ if not st.session_state.authenticated:
 
         with tab2:
             st.markdown("Join LittleHeart AI Care to monitor your health.")
+            new_name = st.text_input("Full Name", key="signup_name")
             new_email = st.text_input("Email", key="signup_email")
             new_pass = st.text_input("Password", type="password", key="signup_pass")
             confirm_pass = st.text_input("Confirm Password", type="password", key="signup_confirm")
@@ -249,8 +250,10 @@ if not st.session_state.authenticated:
                     st.error("Passwords do not match!")
                 elif len(new_pass) < 6:
                     st.error("Password must be at least 6 characters.")
+                elif not new_name:
+                    st.error("Please enter your full name.")
                 else:
-                    success, msg = sign_up_user(new_email, new_pass)
+                    success, msg = sign_up_user(new_email, new_pass, new_name)
                     if success:
                         st.success(msg)
                         st.info("Please verify your email before logging in.")

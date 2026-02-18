@@ -75,6 +75,7 @@ if submit:
         }
         result = analyze_patient(payload)
         st.session_state.last_result = result
+        st.session_state.last_input = payload
 
 with col_viz:
     if "last_result" in st.session_state:
@@ -108,13 +109,13 @@ with col_viz:
         
         # --- PDF Report Button ---
         st.write("---")
-        pdf_bytes = generate_clinical_pdf(payload, res)
+        pdf_bytes = generate_clinical_pdf(st.session_state.get("last_input", {}), res)
         st.download_button(
             label="📥 Download Clinical Report (PDF)",
             data=pdf_bytes,
             file_name=f"LittleHeart_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
             mime="application/pdf",
-            width="stretch"
+            use_container_width=True
         )
         st.markdown('</div>', unsafe_allow_html=True)
         

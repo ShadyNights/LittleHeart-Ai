@@ -25,12 +25,13 @@ def login_user(email, password):
     try:
         res = supabase.auth.sign_in_with_password({"email": email, "password": password})
         if res.user:
-            # Fetch role from user_profiles table
-            profile = supabase.table("user_profiles").select("role").eq("id", res.user.id).single().execute()
-            
-            role = "patient"
-            if profile.data:
-                role = profile.data.get("role", "patient")
+            # Fetch role from user_profiles table - gracefully handle if not found yet
+            try:
+                profile = supabase.table("user_profiles").select("role").eq("id", res.user.id).single().execute()
+                role = profile.data.get("role", "patient") if profile.data else "patient"
+            except Exception as e:
+                print(f"Profile lookup note: {e}")
+                role = "patient" # Default fallback
                 
             token = res.session.access_token if res.session else None
             return role, token
@@ -39,29 +40,28 @@ def login_user(email, password):
         return None, None
     return None, None
 
-def sign_up_user(email, password, role="patient"):
+def sign_up_user(email, password, full_name, role="patient"):
     """
-    Registers a new user and creates a profile.
+    Registers a new user. The DB trigger 'on_auth_user_created' 
+    handles profile creation using full_name from user_metadata.
     """
     if not supabase:
         return False, "Supabase not initialized"
     
     try:
-        # 1. Sign up user
-        res = supabase.auth.sign_up({"email": email, "password": password})
+        # Sign up user with full_name in metadata so trigger can pick it up
+        res = supabase.auth.sign_up({
+            "email": email, 
+            "password": password,
+            "options": {
+                "data": {
+                    "full_name": full_name,
+                    "role": role
+                }
+            }
+        })
         
-        if res.user and res.user.id:
-            # 2. Key Step: Create Profile for Role
-            # Note: Verify if your DB has a trigger. If not, this is needed.
-            # We try to insert, ignoring duplicates if trigger exists.
-            try:
-                supabase.table("user_profiles").insert([
-                    {"id": res.user.id, "email": email, "role": role}
-                ]).execute()
-            except Exception as e:
-                # Often triggers auto-create profile, so this might fail harmlessly
-                print(f"Profile creation note: {e}")
-                
+        if res.user:
             return True, "Account created! Please check your email to confirm."
         return False, "Sign up failed."
     except Exception as e:
