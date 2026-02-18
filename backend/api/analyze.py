@@ -78,8 +78,8 @@ async def async_clinical_augmentation(input_id: str, user_id: str, data: Analyze
 
 @router.post("/analyze", response_model=AnalyzeResponse)
 @limiter.limit("10/minute")
-async def analyze(request: Request, data: AnalyzeRequest, background_tasks: BackgroundTasks, user_id: str = Depends(get_user_id)):
-    correlation_id = getattr(request.state, "correlation_id", f"anl_{int(time.time())}")
+async def analyze(request: Optional[Request], data: AnalyzeRequest, background_tasks: BackgroundTasks, user_id: str = Depends(get_user_id)):
+    correlation_id = getattr(request.state, "correlation_id", f"anl_{int(time.time())}") if request else f"chat_{int(time.time())}"
     
     r_start = time.time()
     rule_result = rule_engine.evaluate(data)
@@ -108,7 +108,7 @@ async def analyze(request: Request, data: AnalyzeRequest, background_tasks: Back
     elif not ml_result:
         fusion_reason = "Rule Engine Authority (ML Offline)"
     
-    ip_address = request.client.host if request.client else "unknown"
+    ip_address = request.client.host if request and request.client else "internal_bot"
     db_start = time.time()
     input_id = supabase.save_analysis_atomic(
         user_id=user_id,

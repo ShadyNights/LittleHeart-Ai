@@ -11,6 +11,7 @@ if project_root not in sys.path:
 
 from frontend_streamlit.services.api_client import analyze_patient, call_chatbot_api, fetch_risk_history
 from frontend_streamlit.services.charts import render_risk_gauge
+from frontend_streamlit.services.pdf_generator import generate_clinical_pdf
 
 st.set_page_config(page_title="Patient Dashboard", page_icon="👩‍🍼", layout="wide")
 
@@ -48,7 +49,7 @@ with col_form:
             reduced_fetal_movement = st.checkbox("Reduced Fetal Movement")
             severe_abdominal_pain = st.checkbox("Severe Abdominal Pain")
 
-        submit = st.form_submit_button("🔍 Run Full Analysis", use_container_width=True)
+        submit = st.form_submit_button("🔍 Run Full Analysis", width="stretch")
     st.markdown('</div>', unsafe_allow_html=True)
 
 if submit:
@@ -83,7 +84,7 @@ with col_viz:
         
         # --- Top Row: Gauge | Info ---
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.plotly_chart(render_risk_gauge(risk, conf), use_container_width=True)
+        st.plotly_chart(render_risk_gauge(risk, conf), width="stretch")
         
         tc1, tc2 = st.columns(2)
         # Scale clinical confidence to 100% format if it's a decimal
@@ -104,6 +105,17 @@ with col_viz:
         else:
              reasoning = explanation.get("reasoning") or explanation.get("gemini_explanation") or "No explanation provided."
              st.info(reasoning)
+        
+        # --- PDF Report Button ---
+        st.write("---")
+        pdf_bytes = generate_clinical_pdf(payload, res)
+        st.download_button(
+            label="📥 Download Clinical Report (PDF)",
+            data=pdf_bytes,
+            file_name=f"LittleHeart_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+            mime="application/pdf",
+            width="stretch"
+        )
         st.markdown('</div>', unsafe_allow_html=True)
         
         # --- ML Probs | Rule Breakdown ---
@@ -120,7 +132,7 @@ with col_viz:
                 fig_probs = px.bar(df_probs, x="Risk", y="Probability", color="Risk", 
                                   color_discrete_map={"LOW": "#16A34A", "MEDIUM": "#F59E0B", "HIGH": "#DC2626", "CRITICAL": "#000000"})
                 fig_probs.update_layout(height=180, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-                st.plotly_chart(fig_probs, use_container_width=True)
+                st.plotly_chart(fig_probs, width="stretch")
             else:
                 st.write("ML probabilities unavailable.")
         with t2:
@@ -137,7 +149,7 @@ with col_viz:
          st.subheader("📉 Risk History")
          fig_hist = px.line(history, x="date", y="risk_score", markers=True, title="Risk Trend over Time")
          fig_hist.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-         st.plotly_chart(fig_hist, use_container_width=True)
+         st.plotly_chart(fig_hist, width="stretch")
          st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Chatbot Section ---

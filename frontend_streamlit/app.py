@@ -140,7 +140,31 @@ label {
 /* SIDEBAR */
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #0F172A, #1E293B);
-    color: white;
+}
+
+/* Force sidebar text/links to be white */
+section[data-testid="stSidebar"] [data-testid="stSidebarNav"] span,
+section[data-testid="stSidebar"] [data-testid="stSidebarNav"] a,
+section[data-testid="stSidebar"] [data-testid="stSidebarNav"] svg,
+section[data-testid="stSidebar"] .st-emotion-cache-16idsys p {
+    color: white !important;
+    fill: white !important;
+}
+
+/* Hover effect */
+section[data-testid="stSidebar"] [data-testid="stSidebarNav"] a:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Active page highlight */
+section[data-testid="stSidebar"] [data-testid="stSidebarNav"] a[aria-current="page"] {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #4ade80 !important; /* Light green for active */
+}
+
+/* Active page icon */
+section[data-testid="stSidebar"] [data-testid="stSidebarNav"] a[aria-current="page"] svg {
+    fill: #4ade80 !important;
 }
 
 /* METRICS */
@@ -197,14 +221,14 @@ if not st.session_state.authenticated:
             with st.form("login_form"):
                 st.text_input("Email", key="login_email")
                 st.text_input("Password", type="password", key="login_password")
-                submit = st.form_submit_button("Sign In", use_container_width=True)
+                submit = st.form_submit_button("Sign In", width="stretch")
                 
                 if submit:
                     attempt_login()
             
             with st.expander("Forgot Password?", icon="🔑"):
                 reset_email = st.text_input("Enter your registered email", key="reset_email_input")
-                if st.button("Send Reset Link", use_container_width=True):
+                if st.button("Send Reset Link", width="stretch"):
                     if reset_email:
                         success, msg = reset_password(reset_email)
                         if success:
@@ -220,7 +244,7 @@ if not st.session_state.authenticated:
             new_pass = st.text_input("Password", type="password", key="signup_pass")
             confirm_pass = st.text_input("Confirm Password", type="password", key="signup_confirm")
             
-            if st.button("Create Account", use_container_width=True):
+            if st.button("Create Account", width="stretch"):
                 if new_pass != confirm_pass:
                     st.error("Passwords do not match!")
                 elif len(new_pass) < 6:

@@ -53,7 +53,7 @@ if metrics:
              df_weekly = metrics["weekly_alerts"]
              fig_vol = px.area(df_weekly, x="day", y="count", title="Assessment Throughput", markers=True)
              fig_vol.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-             st.plotly_chart(fig_vol, use_container_width=True)
+             st.plotly_chart(fig_vol, width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_r:
@@ -62,7 +62,7 @@ if metrics:
         if "distribution" in metrics:
             fig_pie = px.pie(metrics["distribution"], names="risk", values="count", hole=0.5)
             fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-            st.plotly_chart(fig_pie, use_container_width=True)
+            st.plotly_chart(fig_pie, width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("---")

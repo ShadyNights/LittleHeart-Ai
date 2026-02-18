@@ -82,7 +82,7 @@ while True:
             if "distribution" in metrics:
                 fig_dist = px.pie(metrics["distribution"], names="risk", values="count", hole=0.4)
                 fig_dist.update_layout(margin=dict(t=0, b=0, l=0, r=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-                st.plotly_chart(fig_dist, use_container_width=True)
+                st.plotly_chart(fig_dist, width="stretch")
             st.markdown('</div>', unsafe_allow_html=True)
             
         with c2:
@@ -91,7 +91,7 @@ while True:
             if "weekly_alerts" in metrics:
                 fig_weekly = px.bar(metrics["weekly_alerts"], x="day", y="count")
                 fig_weekly.update_layout(margin=dict(t=0, b=0, l=0, r=0), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-                st.plotly_chart(fig_weekly, use_container_width=True)
+                st.plotly_chart(fig_weekly, width="stretch")
             st.markdown('</div>', unsafe_allow_html=True)
 
     time.sleep(3)
