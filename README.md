@@ -1,97 +1,137 @@
-# 🩺 LittleHeart AI Care
-### *Enterprise Hybrid Clinical Intelligence for Maternal Health*
+# 🩺 LittleHeart AI Care: Technical Specification & Execution Guide
 
-**Status**: 🚀 PRODUCTION-READY (10/10 Hardened)  
-**Version**: 4.0.0-PROTOTYPE  
-**Core Stack**: FastAPI + Streamlit + Supabase + Gemini 2.0 Flash
+## I. STRATEGIC OVERSIGHT & PRODUCT VISION
 
-LittleHeart AI Care is a hospital-grade maternal health assessment platform. It combines deterministic medical rules with predictive machine learning and advanced generative AI (NLP) to provide a 360-degree clinical decision support system.
+### Mission-Critical Summary
+LittleHeart AI Care fundamentally resolves the latency and accuracy gap in maternal health triage by deploying a hospital-grade, multi-layered decision support system. It introduces a paradigm shift away from purely generative AI tools by enforcing a strict "Fail-Safe Clinical Hierarchy" where deterministic medical rules outright override machine learning and language models. This prevents fatal misdiagnoses, ensures regulatory compliance, and accelerates clinical response times when life-threatening conditions (e.g., preeclampsia, sepsis) emerge. 
 
----
+### User & System Personas
+- **Target High-Value User**: On-call Obstetricians, Triage Nurses, and expectant mothers requiring rapid, highly-accurate health assessments with transparent clinical reasoning.
+- **Edge Case/Adversary**: Malicious actors engaging in prompt injection to alter clinical outcomes, or hypochondriac patients overloading the system with rapid-fire, low-fidelity assessment requests.
 
-## 🏛️ Comprehensive Architecture
+### The "Plain English" Domain Glossary
+1. **Deterministic Rules Engine**: Code that follows strict, uncompromising medical thresholds (e.g., "If blood pressure > 160/110, trigger crisis alert") that cannot be changed by AI.
+2. **XGBoost Ensemble**: A powerful analytical model fine-tuned entirely on structured patient data (like age, BMI, vitals) to detect hidden trends without using language models.
+3. **Generative NLP Sandboxing**: The practice of restricting conversational AI (Gemini) solely to translating medical jargon into patient-friendly text, explicitly forbidding it from making diagnoses.
+4. **Row Level Security (RLS)**: A database firewall ensuring that Dr. A can mathematically only access records for patients assigned to Dr. A, preventing data leaks at the database logic level.
+5. **Atomic Persistence**: Saving a patient record such that it either completely succeeds or completely fails, leaving no fragmented or corrupted medical data.
 
-The platform follows a strict **Fail-Safe Clinical Hierarchy**:
+## II. SYSTEM ARCHITECTURE & CORE LOGIC ENGINE
 
-### 1. The Triple-Engine Intelligence
-| Layer | Engine Type | Authority | Clinical Role |
-| :--- | :--- | :--- | :--- |
-| **🥇 Layer 1** | **Deterministic Rules** | **ABSOLUTE** | Catches Red Flags (Crisis/Sepsis). *Unalterable by AI.* |
-| **🥈 Layer 2** | **ML Ensemble (XGB)** | **MODERATE** | Detects nuanced risk patterns. *Cannot downgrade Layer 1.* |
-| **🥉 Layer 3** | **Gemini 2.0 Flash** | **NLP ONLY** | Generates patient-friendly explanations. *Strictly sandboxed.* |
+### System Data Flow
+1. **Frontend (Streamlit)**: Collects vitals, symptoms, and chatbot telemetry.
+2. **API Layer (FastAPI)**: Receives payload, validates JSON schemas, and authenticates the JWT session.
+3. **Triple-Engine Evaluation**:
+   - *Phase A (Rules)*: Payload hits raw Python deterministic hardcodes. If critical, flag triggered immediately.
+   - *Phase B (ML)*: Payload routed through XGBoost for risk scoring.
+   - *Phase C (NLP)*: Vitals and outputs fed to Gemini 2.0 for human-readable summaries.
+4. **Persistence (Supabase)**: Final payload + system judgements committed to immutable Postgres instance. 
+5. **Alerting (WebSocket)**: Broadcasts crisis flags to Provider Dashboards instantly.
 
-### 2. Live Monitoring & Alerts
-- **WebSocket Gateway**: Real-time push notifications for high-risk assessments.
-- **Provider Dashboard**: Live-updating banner for medical staff to respond to critical patient flags instantly.
+### Feature & Logic Breakdown
+- **Deterministic Triage (Layer 1)**: Business logic utilizes direct `> / <` comparative operators mapped directly to CDC/ACOG maternal guidelines. Logic: If `{systolic} >= 160` OR `{proteinuria} == True`, output `CRITICAL_PREECLAMPSIA` and disable ML overrides.
+- **Predictive Risk Scoring (Layer 2)**: Standard-scaled inputs feed an `xgboost.Booster.predict()` operation, returning an anomaly likelihood integer (0-100%).
+- **Sandboxed NLP Summarization (Layer 3)**: Pydantic schemas enforce Gemini output parsing. Prompt architecture: `[SYSTEM: YOU ARE A TRANSLATOR. DO NOT DIAGNOSE.] [DATA: {vitals}]`.
+- **Live Provider Notification**: Asynchronous FastAPI background tasks push JSON telemetry to a WebSocket connection, updating the provider UI state within <200ms.
 
-### 3. Patient Interface
-- **Chatbot Companion**: Conversational triage that maps user feelings to clinical metrics.
-- **Self-Assessment**: Structured forms with real-time feedback and clinical reasoning.
-- **Reporting**: Instant PDF Export of clinical summaries for external consultation.
+### Requirement Enforcement
+- **FastAPI**: Unmatched for its native asynchronous capabilities and automatic OpenAPI schema generation, making complex, multi-agent AI logic fast and documentable.
+- **Supabase/Postgres**: Native RLS is required for HIPAA compliance. Sub-millisecond realtime capabilities are superior to polling.
+- **XGBoost**: Outperforms neural networks on standard tabular medical data (vitals, blood panels) and provides high explainability for clinical audits.
 
----
+### Risk & Mitigation Matrix
+| Critical Risk | Failure State | Architectural Mitigation |
+| :--- | :--- | :--- |
+| **LLM Diagnostic Hallucination** | Gemini wrongly tells a critical patient they are fine. | **Enforced Hierarchy**. Gemini's output is *appended* to the deterministic assessment, never replacing it. The UI hard-codes the red flags over the NLP text. |
+| **Data Bleed/PII Leakage** | Patient B sees Patient A's records. | **Supabase RLS Rules**. Database inherently blocks cross-tenant reads; FastAPI backend has no administrative override for standard requests. |
+| **WebSocket Race Conditions** | Doctor receives delayed crisis alert. | **Idempotent Webhooks & Polling Fallback**. Clients utilize auto-reconnecting WS hooks, backed up by a 15-second SWR (Stale-While-Revalidate) poll. |
 
-## 🔐 Security & Compliance
+### Data Integrity & Security
+- **Input Validation**: Pydantic strictly enforces typing (e.g., Heart rate MUST be integer between 30 and 250). Invalid payloads reject with `422 Unprocessable Entity`.
+- **Transactions**: All CRUD operations use Postgres ACID transactions. 
+- **Encryption**: AES-256 for data at rest; TLS 1.3 for data in transit. 
 
-- **Supabase Auth**: Integrated Sign-up, Sign-in, and Password Reset flows.
-- **Atomic Persistence**: Every assessment is saved with a globally unique `input_id` and logged in an immutable audit trail.
-- **Data Privacy**: RLS (Row Level Security) ensures doctors only see assigned patients.
-- **Clinical Watermark**: All data exports are tagged with system versioning for legal traceability.
+## III. FRONTEND ENGINEERING & UX FIDELITY
 
----
+### Interface Constraints
+- **Design System**: Glassmorphic layout emphasizing clinical sterility (whites, medical blues) with stark visual contrasting (deep reds) for danger states.
+- **Response Budget**: Form submission to initial diagnostic rendering must occur under 800ms. NLP streaming must begin under 1200ms.
+- **Accessibility**: WCAG 2.1 AA compliant contrasting.
 
-## 🛠️ Project Structure
-```
-LittleHeart AI Care/
-├── backend/
-│   ├── api/             # FastAPI Orchestrators (Analyze, Chat, History)
-│   ├── core/            # Clinical Fusion & Feature Engineering
-│   ├── engines/         # Rules, ML (XGBoost), Gemini 2.0
-│   ├── services/        # Supabase, Alerts (WS), Audit, Metrics
-│   └── database_schema.sql # National Standard SQL
-├── frontend_streamlit/
-│   ├── pages/           # Patient, Provider, and Admin Dashboards
-│   ├── services/        # Auth, API Client, PDF Export, Charts
-│   └── assets/          # Custom Glassmorphism Styles & ECG Animation
-└── tests/               # 🩺 Multi-layer System Verification Suite
-```
+### Application State Machine
+1. **Boot/Idle**: Connect WebSocket, verify auth token.
+2. **Form Entry**: Client-side validation blocks erroneous data (e.g., patient age = 400).
+3. **Processing**: UI displays non-blocking loading skeletons.
+4. **Evaluation**: Streamlit renders deterministic flags IMMEDIATELY. ML and NLP results populate asynchronously.
+5. **Action/Success**: PDF generated, provider alerted, clear "Next Steps" rendered to patient.
 
----
+## IV. DEVOPS, ARCHITECTURE & DEPLOYMENT PROTOCOL
 
-## 🚀 Quick Start Guide
+### The Audit File (AUDIT_LOG_SPEC.md)
+- **DECISION 001**: Use Supabase over Custom Postgres. *Reason*: Zero-maintenance auth, realtime out-of-the-box, and immediate RLS implementation.
+- **DECISION 002**: Streamlit limitation circumvention. *Reason*: Built custom HTML/CSS injections within Streamlit components to allow live DOM manipulation without constant app reruns. 
+- **DECISION 003**: Hardcode Clinical Rules Python side, not DB side. *Reason*: Easier version control and unit testing of maternal clinical guidelines vs testing raw SQL functions.
 
-### 1. Environment Requirements
-Create a `.env` file in the root directory:
+### Local Environment Setup
+Ensure Docker Desktop is running. Setup your `.env` in the root (`d:\LittleHeart Ai Care - Copy (3)\.env`):
+
 ```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-service-role-key
-SUPABASE_JWT_SECRET=your-jwt-secret
-GEMINI_API_KEY=your-google-gemini-key
+SUPABASE_URL=YOUR_URL
+SUPABASE_KEY=YOUR_KEY
+SUPABASE_JWT_SECRET=YOUR_SECRET
+GEMINI_API_KEY=YOUR_KEY
 ENV=development
 ```
 
-### 2. Installation
+Run via Docker-Compose:
 ```bash
-# Backend Dependencies
-pip install -r requirements.txt
-
-# Frontend Dependencies
-pip install -r frontend_streamlit/requirements_streamlit.txt
+docker-compose up --build -d
 ```
 
-### 3. Execution
-```bash
-# Start Backend (Port 8000)
-uvicorn backend.main:app --reload
+### Production Deployment
+**Target Architecture: AWS ECS (Fargate) + Application Load Balancer**
+1. ECR holds the immutable Docker image.
+2. Application Load Balancer (ALB) distributes traffic to ECS tasks.
+3. HTTPS terminates at the ALB; ALB talks to FastAPI via standard port 80/8000.
+4. Scale policy metrics tied to CPU utilization > 60% for aggressive horizontal scaling during hospital shifts.
 
-# Start Frontend (Port 8501)
-streamlit run frontend_streamlit/app.py
+### Git & Security Hygiene
+`.gitignore` file contents:
+```text
+# Environments
+.env
+.venv/
+env/
+venv/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Supabase Local
+/supabase/.temp/
+
+# OS Files
+.DS_Store
+Thumbs.db
 ```
 
----
+### The Final Push
+```bash
+# Initialize and link
+git init
+git add .gitignore
+git commit -m "chore: initial security definitions"
 
-## ⚖️ Clinical Disclaimer
-This platform is a clinical decision support system. It is designed for medical professionals to augment care. It is **not** a self-diagnostic device. All assessments must be verified by a licensed healthcare provider in accordance with local healthcare regulations.
+# Add remaining architecture
+git add .
+git commit -m "feat: complete initial LittleHeart AI Care specification and scaffolding"
 
----
-*© 2026 LittleHeart AI Care | Built for Clinical Excellence*
+# Push to secure remote
+git branch -M main
+git remote add origin git@github.com:YOUR_ORG/littleheart-ai-care.git
+git push -u origin main
+```
