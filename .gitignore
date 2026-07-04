@@ -1,25 +1,87 @@
-# Environment
 .env
+.env.*
+!.env.example
+
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
 
-# ML Models (Heavy)
-backend/model/*.pkl
-backend/model/*.h5
+venv/
+.venv/
+env/
+ENV/
 
-# Streamlit
-.streamlit/
+build/
+dist/
+downloads/
+develop-eggs/
+.eggs/
+*.egg
+*.egg-info/
+pip-wheel-metadata/
 
-# Workspace
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.cache/
+coverage.xml
+
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+
+.ipynb_checkpoints/
+
+logs/
+*.log
+*.out
+*.err
+
+.streamlit/secrets.toml
+
+.vscode/
+.idea/
+*.iml
+
 .agent/
 .gemini/
-.vscode/
 
-# Build
-dist/
-build/
-*.egg-info/
-
-# System
+.DS_Store
 Thumbs.db
 Desktop.ini
+
+*.pid
+*.sqlite3
+*.db
+*.pkl
+
+audit_report.md
+deep_dive_documentation.md
+FREE_DEPLOYMENT.md
+
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+*.zip
+*.tar
+*.gz
+*.7z
+
+docker-data/
+docker-volumes/
+
+prometheus_data/
+
+node_modules/
+
+*.orig
+

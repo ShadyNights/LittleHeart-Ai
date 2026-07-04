@@ -82,28 +82,18 @@ def call_chatbot_api(session_id: str, message: str) -> Dict[str, Any]:
         return {"response": f"Assistant is having connection issues: {str(e)}", "next_state": "START"}
 
 def fetch_admin_metrics() -> Dict[str, Any]:
-    """Fetches system-wide metrics for admin dashboard."""
-    # Mocking for immediate UI rendering if backend endpoint differs
-    return {
-        "total": 1240, 
-        "high_percent": 14.5, 
-        "latency": 0.45,
-        "distribution": [
-            {"risk": "LOW", "count": 800}, 
-            {"risk": "MEDIUM", "count": 300}, 
-            {"risk": "HIGH", "count": 100}, 
-            {"risk": "CRITICAL", "count": 40}
-        ],
-        "weekly_alerts": [
-            {"day": "Mon", "count": 12},
-            {"day": "Tue", "count": 19},
-            {"day": "Wed", "count": 3},
-            {"day": "Thu", "count": 5},
-            {"day": "Fri", "count": 2},
-            {"day": "Sat", "count": 20},
-            {"day": "Sun", "count": 15}
-        ]
-    }
+    """Fetches real system-wide metrics from the backend."""
+    try:
+        headers = {}
+        token = st.session_state.get("access_token")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        response = httpx.get(f"{API_BASE}/admin/metrics", headers=headers, timeout=10.0)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        # Return empty structure on failure so UI doesn't crash
+        return {"total": 0, "high_percent": 0, "latency": 0, "distribution": [], "weekly_alerts": []}
 
 def fetch_alerts() -> List[Dict]:
     """Fetches recent alerts (polling fallback or WS buffer)."""
