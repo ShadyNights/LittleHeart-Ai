@@ -59,7 +59,6 @@ Desktop.ini
 *.pid
 *.sqlite3
 *.db
-*.pkl
 
 audit_report.md
 deep_dive_documentation.md
