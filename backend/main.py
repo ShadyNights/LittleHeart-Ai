@@ -1,10 +1,11 @@
 from backend.middleware.logging_middleware import setup_logging
 setup_logging()
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import logging
+import jwt
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -15,6 +16,7 @@ from backend.middleware.observability import TracingMiddleware
 from backend.services.metrics_service import metrics_endpoint
 from backend.config import settings
 from backend.websocket_manager import manager
+from backend.utils.auth import Auth
 
 limiter = Limiter(key_func=get_remote_address)
 ws_logger = logging.getLogger("WebSocketAlerts")
@@ -33,13 +35,34 @@ app.add_middleware(TracingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Correlation-ID"],
 )
 
 app.middleware("http")(logging_middleware)
+
+
+def _authenticate_ws_token(token: str) -> dict:
+    """Verify a JWT token for WebSocket connections. Returns payload or raises."""
+    jwks_client = Auth.get_jwks_client()
+    if not jwks_client:
+        raise ValueError("JWKS Client not initialized")
+    signing_key = jwks_client.get_signing_key_from_jwt(token)
+    payload = jwt.decode(
+        token,
+        signing_key.key,
+        algorithms=["RS256", "HS256"],
+        audience="authenticated",
+        issuer=f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1",
+        leeway=30,
+        options={"verify_exp": True, "verify_nbf": True, "verify_iss": True, "verify_aud": True}
+    )
+    if "sub" not in payload:
+        raise ValueError("Token missing subject claim")
+    return payload
+
 
 @app.get("/health")
 def health_check():
@@ -52,7 +75,17 @@ def get_metrics():
 app.include_router(analyze_router)
 
 @app.websocket("/ws/alerts")
-async def websocket_alerts(websocket: WebSocket):
+async def websocket_alerts(websocket: WebSocket, token: str = Query(default=None)):
+    # Authenticate WebSocket connection via query parameter
+    if not token:
+        await websocket.close(code=4001, reason="Authentication required. Provide ?token=JWT")
+        return
+    try:
+        _authenticate_ws_token(token)
+    except Exception as e:
+        await websocket.close(code=4003, reason=f"Authentication failed: {str(e)}")
+        return
+
     await manager.connect(websocket)
     try:
         while True:
@@ -63,7 +96,17 @@ async def websocket_alerts(websocket: WebSocket):
         manager.disconnect(websocket)
 
 @app.websocket("/ws/dashboard")
-async def websocket_dashboard(websocket: WebSocket):
+async def websocket_dashboard(websocket: WebSocket, token: str = Query(default=None)):
+    # Authenticate WebSocket connection via query parameter
+    if not token:
+        await websocket.close(code=4001, reason="Authentication required. Provide ?token=JWT")
+        return
+    try:
+        _authenticate_ws_token(token)
+    except Exception as e:
+        await websocket.close(code=4003, reason=f"Authentication failed: {str(e)}")
+        return
+
     await websocket.accept()
     ws_logger.info("Dashboard WebSocket connected")
     try:

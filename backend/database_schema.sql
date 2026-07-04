@@ -23,12 +23,14 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
 CREATE TABLE IF NOT EXISTS public.patient_inputs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES public.user_profiles(id) NOT NULL,
-    age INT NOT NULL CHECK (age BETWEEN 13 AND 55),
+    age INT NOT NULL CHECK (age BETWEEN 13 AND 60),
     trimester INT NOT NULL CHECK (trimester BETWEEN 1 AND 3),
-    trimester_weeks INT NOT NULL CHECK (trimester_weeks BETWEEN 1 AND 45),
+    trimester_weeks INT NOT NULL CHECK (trimester_weeks BETWEEN 1 AND 42),
     blood_pressure INT NOT NULL CHECK (blood_pressure BETWEEN 0 AND 2),
+    blood_pressure_systolic INT,
+    blood_pressure_diastolic INT,
     hemoglobin FLOAT NOT NULL CHECK (hemoglobin BETWEEN 0.0 AND 25.0),
-    heart_rate INT NOT NULL CHECK (heart_rate BETWEEN 40 AND 200),
+    heart_rate INT NOT NULL CHECK (heart_rate BETWEEN 30 AND 220),
     swelling BOOLEAN NOT NULL DEFAULT FALSE,
     headache_severity INT NOT NULL CHECK (headache_severity BETWEEN 0 AND 3),
     vaginal_bleeding BOOLEAN NOT NULL DEFAULT FALSE,
@@ -137,6 +139,8 @@ CREATE OR REPLACE FUNCTION public.save_clinical_assessment_v3(
     p_trimester INT,
     p_trimester_weeks INT,
     p_blood_pressure INT,
+    p_bp_systolic INT,
+    p_bp_diastolic INT,
     p_hb FLOAT,
     p_hr INT,
     p_swelling BOOLEAN,
@@ -165,11 +169,13 @@ DECLARE
 BEGIN
     INSERT INTO public.patient_inputs (
         user_id, age, trimester, trimester_weeks, blood_pressure, 
+        blood_pressure_systolic, blood_pressure_diastolic,
         hemoglobin, heart_rate, swelling, headache_severity, vaginal_bleeding, 
         diabetes_history, previous_complications, fever, blurred_vision, 
         reduced_fetal_movement, severe_abdominal_pain, ip_address
     ) VALUES (
         p_user_id, p_age, p_trimester, p_trimester_weeks, p_blood_pressure, 
+        p_bp_systolic, p_bp_diastolic,
         p_hb, p_hr, p_swelling, p_headache, p_bleeding, 
         p_diabetes, p_complications, p_fever, p_blurred_vision, 
         p_rfm, p_abdominal_pain, p_ip

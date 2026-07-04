@@ -75,6 +75,8 @@ class SupabaseService:
             input_record = {
                 "user_id": user_id, "age": data.age, "trimester": data.trimester, "trimester_weeks": data.trimester_weeks,
                 "blood_pressure": data.blood_pressure,
+                "blood_pressure_systolic": data.blood_pressure_systolic,
+                "blood_pressure_diastolic": data.blood_pressure_diastolic,
                 "hemoglobin": data.hemoglobin, "heart_rate": data.heart_rate, "swelling": bool(data.swelling),
                 "headache_severity": data.headache_severity, "vaginal_bleeding": bool(data.vaginal_bleeding),
                 "diabetes_history": bool(data.diabetes_history), "previous_complications": bool(data.previous_complications),
@@ -93,7 +95,10 @@ class SupabaseService:
         try:
             rpc_payload = {
                 "p_user_id": user_id, "p_age": data.age, "p_trimester": data.trimester, "p_trimester_weeks": data.trimester_weeks,
-                "p_blood_pressure": data.blood_pressure, "p_hb": data.hemoglobin,
+                "p_blood_pressure": data.blood_pressure, 
+                "p_bp_systolic": data.blood_pressure_systolic,
+                "p_bp_diastolic": data.blood_pressure_diastolic,
+                "p_hb": data.hemoglobin,
                 "p_hr": data.heart_rate, "p_swelling": bool(data.swelling), "p_headache": data.headache_severity,
                 "p_bleeding": bool(data.vaginal_bleeding), "p_diabetes": bool(data.diabetes_history),
                 "p_complications": bool(data.previous_complications), "p_fever": bool(data.fever),

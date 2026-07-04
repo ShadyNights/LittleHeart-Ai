@@ -24,13 +24,9 @@ class Auth:
     def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> Dict[str, Any]:
         token = credentials.credentials
         try:
-            if settings.ENV == "development":
-                # Instant fallback for local development to avoid JWKS network hangs
-                return jwt.decode(token, options={"verify_signature": False, "verify_exp": False}, algorithms=["HS256", "RS256"])
-
             jwks_client = Auth.get_jwks_client()
             if not jwks_client:
-                raise HTTPException(status_code=500, detail="JWKS Client not initialized.")
+                raise HTTPException(status_code=500, detail="JWKS Client not initialized. Check SUPABASE_URL configuration.")
 
             signing_key = jwks_client.get_signing_key_from_jwt(token)
             payload = jwt.decode(
@@ -58,15 +54,9 @@ class Auth:
             raise HTTPException(status_code=401, detail="Invalid token issuer.")
         except jwt.InvalidAudienceError:
             raise HTTPException(status_code=401, detail="Invalid token audience.")
+        except HTTPException:
+            raise
         except Exception as e:
-            if settings.ENV == "development":
-                try:
-                    # Fallback for dev: skip signature verification but require valid format
-                    # Explicitly allow verify_signature=False to bypass alg/key mismatch
-                    return jwt.decode(token, options={"verify_signature": False, "verify_exp": False}, algorithms=["HS256", "RS256"])
-                except Exception:
-                    pass
-            # Propagate original error if fallback fails or not in dev
             raise HTTPException(status_code=401, detail=f"Identity verification failed: {str(e)}")
 
 async def get_user_id(user: Dict[str, Any] = Depends(Auth.get_current_user)) -> str:

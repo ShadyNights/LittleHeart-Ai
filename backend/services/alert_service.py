@@ -14,12 +14,9 @@ class AlertService:
         if risk_level not in [RiskLevel.HIGH, RiskLevel.CRITICAL]:
             return False
 
-        result = self.db.log_alert(
-            input_id=input_id,
-            user_id=user_id,
-            alert_type=f"{risk_level.value}_RISK_DETECTED",
-            status="pending"
-        )
+        # DB alert insertion is handled automatically by the Postgres trigger
+        # on_high_risk_detected when the engine_results row is inserted.
+        # We only need to broadcast the live alert via WebSocket here.
 
         try:
             from backend.websocket_manager import manager

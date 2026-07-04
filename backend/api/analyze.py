@@ -6,7 +6,7 @@ import os
 from backend.schemas.request_schema import AnalyzeRequest, ChatRequest
 from backend.schemas.response_schema import AnalyzeResponse
 from backend.schemas.internal_models import RiskLevel
-from backend.core.feature_engineering import preprocess_input
+# feature_engineering import removed — unused (MLEngine has its own _preprocess)
 from backend.core.decision_fusion import fuse_risk, calculate_clinical_confidence
 from backend.engines.rule_engine import RuleEngine
 from backend.engines.ml_engine import MLEngine
@@ -39,20 +39,25 @@ notification_service = NotificationService(supabase)
 alert_service = AlertService(supabase)
 conv_service = ConversationService()
 
-try:
-    ml_engine = MLEngine()
-    logger.info("ML Engine initialized.")
-except Exception as e:
-    logger.error(f"ML Engine failed: {e}")
-    ml_engine = None
+ml_engine = None
+if settings.ENABLE_ML:
+    try:
+        ml_engine = MLEngine()
+        logger.info("ML Engine initialized.")
+    except Exception as e:
+        logger.error(f"ML Engine failed: {e}")
+else:
+    logger.info("ML Engine disabled via ENABLE_ML feature flag.")
 
 gemini_engine = None
-if settings.GEMINI_API_KEY:
+if settings.ENABLE_GEMINI and settings.GEMINI_API_KEY:
     try:
         gemini_engine = GeminiEngine(api_key=settings.GEMINI_API_KEY)
         logger.info("Gemini Engine initialized.")
     except Exception as e:
         logger.error(f"Gemini Engine failed: {e}")
+elif not settings.ENABLE_GEMINI:
+    logger.info("Gemini Engine disabled via ENABLE_GEMINI feature flag.")
 
 async def async_clinical_augmentation(input_id: str, user_id: str, data: AnalyzeRequest, final_risk: RiskLevel, rule_res: Any, ml_res: Any):
     explanation = {"reasoning": "Generating..."}
@@ -198,3 +203,54 @@ async def init_chat(user_id: str = Depends(get_user_id)):
 async def chat_message(data: ChatRequest, user_id: str = Depends(get_user_id)):
     response, next_state = await conv_service.process_message(user_id, data.session_id, data.message)
     return {"response": response, "next_state": next_state.value}
+
+
+@router.get("/admin/metrics")
+async def admin_metrics(user_id: str = Depends(get_user_id)):
+    """Returns real system-wide metrics from the database."""
+    try:
+        # Total assessments
+        results = await asyncio.to_thread(
+            supabase.client.table("engine_results").select("final_risk").execute
+        )
+        all_results = results.data or []
+        total = len(all_results)
+
+        # Risk distribution
+        risk_counts = {}
+        for r in all_results:
+            level = r.get("final_risk", "LOW")
+            risk_counts[level] = risk_counts.get(level, 0) + 1
+        distribution = [{"risk": k, "count": v} for k, v in risk_counts.items()]
+
+        # High risk percentage
+        high_count = risk_counts.get("HIGH", 0) + risk_counts.get("CRITICAL", 0)
+        high_percent = round((high_count / total * 100), 1) if total > 0 else 0.0
+
+        # Weekly alert volume (last 7 days)
+        from datetime import datetime, timedelta
+        week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+        alerts_res = await asyncio.to_thread(
+            supabase.client.table("alerts").select("created_at").gte("created_at", week_ago).execute
+        )
+        alerts_data = alerts_res.data or []
+        day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        day_counts = {d: 0 for d in day_names}
+        for a in alerts_data:
+            try:
+                dt = datetime.fromisoformat(a["created_at"].replace("Z", "+00:00"))
+                day_counts[day_names[dt.weekday()]] += 1
+            except Exception:
+                pass
+        weekly_alerts = [{"day": d, "count": c} for d, c in day_counts.items()]
+
+        return {
+            "total": total,
+            "high_percent": high_percent,
+            "latency": 0,
+            "distribution": distribution,
+            "weekly_alerts": weekly_alerts
+        }
+    except Exception as e:
+        logger.error(f"Admin metrics failed: {e}")
+        return {"total": 0, "high_percent": 0, "latency": 0, "distribution": [], "weekly_alerts": []}
