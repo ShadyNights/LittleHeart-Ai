@@ -20,7 +20,8 @@ def login_user(email, password):
     Returns None if authentication fails.
     """
     if not supabase:
-        return None
+        st.error("⚠️ Supabase credentials are missing. Please configure them in Streamlit Cloud Secrets.")
+        return None, None
         
     try:
         res = supabase.auth.sign_in_with_password({"email": email, "password": password})
