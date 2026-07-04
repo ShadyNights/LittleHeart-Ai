@@ -48,9 +48,13 @@ class ConversationService:
         self.supabase = SupabaseService()
         self.rule_engine = RuleEngine()
 
-    async def get_or_create_session(self, user_id: str) -> Dict[str, Any]:
+    async def get_or_create_session(self, user_id: str, token: str) -> Dict[str, Any]:
+        scoped_client = self.supabase.get_scoped_client(token)
+        if not scoped_client:
+            raise ValueError("Failed to create authenticated Supabase client.")
+
         session = await asyncio.to_thread(
-            self.supabase.client.table("chat_sessions").select("*").eq("user_id", user_id).eq("is_completed", False).order("updated_at", desc=True).limit(1).execute
+            scoped_client.table("chat_sessions").select("*").eq("user_id", user_id).eq("is_completed", False).order("updated_at", desc=True).limit(1).execute
         )
         
         if session.data:
@@ -58,7 +62,7 @@ class ConversationService:
             if s_data.get("timeout_at"):
                 timeout = datetime.fromisoformat(s_data["timeout_at"].replace("Z", "+00:00"))
                 if datetime.now().astimezone() > timeout:
-                    self.supabase.client.table("chat_sessions").update({
+                    scoped_client.table("chat_sessions").update({
                         "is_completed": True,
                         "current_state": ChatState.COMPLETE.value,
                         "updated_at": datetime.now().isoformat()
@@ -74,18 +78,22 @@ class ConversationService:
             "collected_data": {},
             "timeout_at": (datetime.now() + timedelta(hours=1)).isoformat()
         }
-        res = self.supabase.client.table("chat_sessions").insert(new_session).execute()
+        res = scoped_client.table("chat_sessions").insert(new_session).execute()
         return res.data[0]
 
-    async def process_message(self, user_id: str, session_id: str, message: str) -> Tuple[str, ChatState]:
+    async def process_message(self, user_id: str, session_id: str, message: str, token: str) -> Tuple[str, ChatState]:
         # Validate session_id is a valid UUID to prevent DB crash
         try:
             UUID(session_id)
         except (ValueError, TypeError):
              return "I'm sorry, your session has expired or is invalid. Please refresh the page to start a new clinical assessment.", ChatState.START
 
+        scoped_client = self.supabase.get_scoped_client(token)
+        if not scoped_client:
+            return "Server error: could not authenticate connection.", ChatState.START
+
         session = await asyncio.to_thread(
-            self.supabase.client.table("chat_sessions").select("*").eq("id", session_id).single().execute
+            scoped_client.table("chat_sessions").select("*").eq("id", session_id).single().execute
         )
         if not session.data:
             return "Session not found. Please refresh the page.", ChatState.COMPLETE
@@ -94,7 +102,7 @@ class ConversationService:
         data = session.data["collected_data"] or {}
         
         await asyncio.to_thread(
-            self.supabase.client.table("chat_messages").insert({
+            scoped_client.table("chat_messages").insert({
                 "session_id": session_id,
                 "sender": "user",
                 "content": message
@@ -108,20 +116,24 @@ class ConversationService:
              response = "🚨 EMERGENCY DETECTED: I am notifying our clinical team immediately while we finish the assessment. Please tell me more about your symptoms."
 
         if next_state == ChatState.ANALYZING:
-            response = await self.finalize_assessment(user_id, session_id, data)
+            response = await self.finalize_assessment(user_id, session_id, data, request=None, token=token)
             next_state = ChatState.COMPLETE
 
-        self.supabase.client.table("chat_sessions").update({
-            "current_state": next_state.value,
-            "collected_data": data,
-            "updated_at": datetime.now().isoformat()
-        }).eq("id", session_id).execute()
+        await asyncio.to_thread(
+            scoped_client.table("chat_sessions").update({
+                "current_state": next_state.value,
+                "collected_data": data,
+                "updated_at": datetime.now().isoformat()
+            }).eq("id", session_id).execute
+        )
 
-        self.supabase.client.table("chat_messages").insert({
-            "session_id": session_id,
-            "sender": "system",
-            "content": response
-        }).execute()
+        await asyncio.to_thread(
+            scoped_client.table("chat_messages").insert({
+                "session_id": session_id,
+                "sender": "system",
+                "content": response
+            }).execute
+        )
 
         return response, next_state
 
@@ -193,10 +205,14 @@ class ConversationService:
 
         return ChatState.COMPLETE, "Assessment complete. Thank you for using LittleHeart."
 
-    async def finalize_assessment(self, user_id: str, session_id: str, data: Dict[str, Any], request: Optional[Any] = None) -> str:
+    async def finalize_assessment(self, user_id: str, session_id: str, data: Dict[str, Any], request: Optional[Any] = None, token: str = "") -> str:
         """
         Triggers the real clinical analysis once chat data collection is complete.
         """
+        scoped_client = self.supabase.get_scoped_client(token)
+        if not scoped_client:
+            return "Failed to save analysis due to authentication error."
+            
         from backend.api.analyze import analyze, AnalyzeRequest
         from fastapi import BackgroundTasks
         
@@ -233,11 +249,13 @@ class ConversationService:
             risk = result.final_risk
             
             # 4. Mark session complete
-            self.supabase.client.table("chat_sessions").update({
-                "is_completed": True,
-                "current_state": ChatState.COMPLETE.value,
-                "updated_at": datetime.now().isoformat()
-            }).eq("id", session_id).execute()
+            await asyncio.to_thread(
+                scoped_client.table("chat_sessions").update({
+                    "is_completed": True,
+                    "current_state": ChatState.COMPLETE.value,
+                    "updated_at": datetime.now().isoformat()
+                }).eq("id", session_id).execute
+            )
             
             return f"Analysis Complete! Your determined risk level is {risk}. You can view the full clinical breakdown on your dashboard now."
             

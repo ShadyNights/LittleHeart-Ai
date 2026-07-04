@@ -15,7 +15,7 @@ from backend.services.supabase_service import SupabaseService
 from backend.services.notification_service import NotificationService
 from backend.services.alert_service import AlertService
 from backend.services.audit_logger import AuditLogger
-from backend.utils.auth import Auth, get_user_id
+from backend.utils.auth import Auth, get_user_id, get_raw_token
 from backend.config import settings
 from backend.services.metrics_service import MetricsService
 import time
@@ -79,7 +79,7 @@ async def async_clinical_augmentation(input_id: str, user_id: str, data: Analyze
     
     if final_risk in [RiskLevel.HIGH, RiskLevel.CRITICAL]:
         notification_service.check_and_alert(input_id, user_id, data, final_risk)
-        alert_service.trigger_clinical_alert(input_id, user_id, final_risk)
+        await alert_service.trigger_clinical_alert(input_id, user_id, final_risk)
 
 @router.post("/analyze")
 @limiter.limit("10/minute")
@@ -167,13 +167,16 @@ async def analyze(request: Request, data: AnalyzeRequest, background_tasks: Back
     )
 
 @router.get("/history")
-async def get_history(user_id: str = Depends(get_user_id)):
+async def get_history(user_id: str = Depends(get_user_id), token: str = Depends(get_raw_token)):
     """Fetches real assessment history for the user from Supabase."""
     try:
+        scoped_client = supabase.get_scoped_client(token)
+        if not scoped_client: return []
+        
         # Pull from engine_results joined with patient_inputs if possible, or just engine_results
         # For simplicity, we query engine_results which contains final_risk and created_at
         res = await asyncio.to_thread(
-            supabase.client.table("engine_results").select(
+            scoped_client.table("engine_results").select(
                 "id, final_risk, created_at, input_id"
             ).order("created_at", desc=True).limit(20).execute
         )
@@ -195,23 +198,27 @@ async def get_history(user_id: str = Depends(get_user_id)):
         return []
 
 @router.get("/chat/init")
-async def init_chat(user_id: str = Depends(get_user_id)):
-    session = await conv_service.get_or_create_session(user_id)
+async def init_chat(user_id: str = Depends(get_user_id), token: str = Depends(get_raw_token)):
+    session = await conv_service.get_or_create_session(user_id, token)
     return {"session_id": session["id"], "state": session["current_state"], "data": session["collected_data"]}
 
 @router.post("/chat/message")
-async def chat_message(data: ChatRequest, user_id: str = Depends(get_user_id)):
-    response, next_state = await conv_service.process_message(user_id, data.session_id, data.message)
+async def chat_message(data: ChatRequest, user_id: str = Depends(get_user_id), token: str = Depends(get_raw_token)):
+    response, next_state = await conv_service.process_message(user_id, data.session_id, data.message, token)
     return {"response": response, "next_state": next_state.value}
 
 
 @router.get("/admin/metrics")
-async def admin_metrics(user_id: str = Depends(get_user_id)):
+async def admin_metrics(user_id: str = Depends(get_user_id), token: str = Depends(get_raw_token)):
     """Returns real system-wide metrics from the database."""
     try:
+        scoped_client = supabase.get_scoped_client(token)
+        if not scoped_client:
+            return {"error": "Unauthorized"}
+            
         # Total assessments
         results = await asyncio.to_thread(
-            supabase.client.table("engine_results").select("final_risk").execute
+            scoped_client.table("engine_results").select("final_risk").execute
         )
         all_results = results.data or []
         total = len(all_results)
@@ -231,7 +238,7 @@ async def admin_metrics(user_id: str = Depends(get_user_id)):
         from datetime import datetime, timedelta
         week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
         alerts_res = await asyncio.to_thread(
-            supabase.client.table("alerts").select("created_at").gte("created_at", week_ago).execute
+            scoped_client.table("alerts").select("created_at").gte("created_at", week_ago).execute
         )
         alerts_data = alerts_res.data or []
         day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]

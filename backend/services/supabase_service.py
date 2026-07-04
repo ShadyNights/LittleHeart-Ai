@@ -43,12 +43,9 @@ class SupabaseService:
     def get_scoped_client(self, access_token: str) -> Optional[Client]:
         if not self.url: return None
         try:
-            http_client = httpx.Client(
-                limits=httpx.Limits(max_connections=settings.POOL_MAX_SIZE, max_keepalive_connections=10),
-                timeout=settings.POOL_TIMEOUT,
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            return create_client(self.url, access_token, options={"http_client": http_client})
+            from supabase.client import ClientOptions
+            options = ClientOptions(headers={"Authorization": f"Bearer {access_token}"})
+            return create_client(self.url, self.key, options=options)
         except BaseException as e:
             logger.error(f"Failed to create scoped Supabase client: {e}")
             return None

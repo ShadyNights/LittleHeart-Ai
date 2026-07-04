@@ -31,5 +31,6 @@ class AlertService:
             logger.info(f"Broadcast alert for {risk_level.value} risk to {manager.connection_count} clients")
         except Exception as e:
             logger.error(f"WebSocket broadcast failed: {e}")
+            return False
 
-        return result
+        return True

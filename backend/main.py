@@ -46,18 +46,24 @@ app.middleware("http")(logging_middleware)
 
 def _authenticate_ws_token(token: str) -> dict:
     """Verify a JWT token for WebSocket connections. Returns payload or raises."""
-    jwks_client = Auth.get_jwks_client()
-    if not jwks_client:
-        raise ValueError("JWKS Client not initialized")
-    signing_key = jwks_client.get_signing_key_from_jwt(token)
+    unverified_header = jwt.get_unverified_header(token)
+    if "kid" in unverified_header:
+        jwks_client = Auth.get_jwks_client()
+        if not jwks_client:
+            raise ValueError("JWKS Client not initialized")
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
+        key_to_use = signing_key.key
+    else:
+        key_to_use = settings.SUPABASE_JWT_SECRET
+        if not key_to_use:
+            raise ValueError("SUPABASE_JWT_SECRET not configured")
+            
     payload = jwt.decode(
         token,
-        signing_key.key,
-        algorithms=["RS256", "HS256"],
+        key_to_use,
+        algorithms=["HS256", "RS256", "ES256"],
         audience="authenticated",
-        issuer=f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1",
-        leeway=30,
-        options={"verify_exp": True, "verify_nbf": True, "verify_iss": True, "verify_aud": True}
+        options={"verify_exp": True, "verify_nbf": True, "verify_iss": False, "verify_aud": True}
     )
     if "sub" not in payload:
         raise ValueError("Token missing subject claim")
